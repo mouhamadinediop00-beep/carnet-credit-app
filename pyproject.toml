@@ -1,0 +1,7 @@
+[project]
+name = "carnet_de_credit"
+version = "1.0.0"
+
+[tool.flet]
+org = "com.carnet"
+product = "Carnet de Crédit"

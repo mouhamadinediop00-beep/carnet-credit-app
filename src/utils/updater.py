@@ -4,7 +4,7 @@ import flet as ft
 VERSION_ACTUELLE = "1.0.0"
 GITHUB_REPO = "mouhamadinediop00-beep/carnet-credit-app"
 
-def verifier_mise_a_jour():
+def verifier_mise_a_jour(e=None):
     try:
         url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
         response = requests.get(url, timeout=5).json()
