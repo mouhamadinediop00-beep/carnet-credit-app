@@ -9,31 +9,31 @@ boutique_app/
 │           └── index.ts
 │
 └── src/
-    ├── main.py[cite: 11]
-    ├── requirements.txt[cite: 11]
+    ├── main.py
+    ├── requirements.txt
     │
-    ├── database/[cite: 11]
-    │   ├── __init__.py[cite: 11]
-    │   ├── db_manager.py[cite: 11]
-    │   └── supabase_client.py[cite: 11]
+    ├── database/
+    │   ├── __init__.py
+    │   ├── db_manager.py
+    │   └── supabase_client.py
     │
-    ├── ui/[cite: 11]
-    │   ├── __init__.py[cite: 11]
-    │   ├── auth_view.py[cite: 11]
-    │   ├── components/[cite: 11]
-    │   │   ├── __init__.py[cite: 11]
-    │   │   ├── client_tile.py[cite: 11]
-    │   │   ├── header.py[cite: 11]
-    │   │   └── pin_view.py[cite: 11]
-    │   └── dialogs/[cite: 11]
-    │       ├── __init__.py[cite: 11]
-    │       ├── ajout_client.py[cite: 11]
+    ├── ui/
+    │   ├── __init__.py
+    │   ├── auth_view.py
+    │   ├── components/
+    │   │   ├── __init__.py
+    │   │   ├── client_tile.py
+    │   │   ├── header.py
+    │   │   └── pin_view.py
+    │   └── dialogs/
+    │       ├── __init__.py
+    │       ├── ajout_client.py
     │       ├── dialogue_operation.py   # <-- Nom corrigé avec le "e"[cite: 1, 11]
-    │       └── pin_settings.py[cite: 11]
+    │       └── pin_settings.py
     │
-    └── utils/[cite: 11]
-        ├── __init__.py[cite: 11]
-        ├── formatters.py[cite: 11]
-        ├── paytech_service.py[cite: 11]
-        ├── subscription_checker.py[cite: 11]
-        └── updater.py[cite: 11]
+    └── utils/
+        ├── __init__.py
+        ├── formatters.py
+        ├── paytech_service.py
+        ├── subscription_checker.py
+        └── updater.py
