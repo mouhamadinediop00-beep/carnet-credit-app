@@ -1,0 +1,17 @@
+# Cache Python
+__pycache__/
+*.py[cod]
+
+# Base de données SQLite locale de test
+*.db
+*.sqlite3
+
+# Fichiers de build & virtuels
+.venv/
+venv/
+build/
+dist/
+*.apk
+
+# Clés d'environnement secrètes
+.env
