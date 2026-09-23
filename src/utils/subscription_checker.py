@@ -1,8 +1,8 @@
 from datetime import datetime, timezone, timedelta
 from supabase import create_client
 
-SUPABASE_URL = "https://<votre-id-projet>.supabase.co"
-SUPABASE_KEY = "votre_cle_anon_public"
+SUPABASE_URL = "https://ofmigkoamxqvfmthxcpa.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mbWlna29hbXhxdmZtdGh4Y3BhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwMzU4ODEsImV4cCI6MjEwNTYxMTg4MX0._3DhPB2WoKbivBJmgUTercoiO-C222qmY3C9DfpUZHs"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
