@@ -2,10 +2,14 @@ boutique_app/
 ├── .gitignore                    # Exclusion des fichiers temporaires, bases locales et clés
 ├── README.md                     # Documentation officielle du projet
 ├──pyproject.toml
-│
+├──build.ps1
 │
 ├── supabase/                     # Backend Cloud & Webhook
 │   └── functions/
+│       ├──create-payment/
+│       │   └── index.ts
+│       ├──get-subscription/
+│       │   └──index.ts
 │       └── paytech-webhook/
 │           └── index.ts          # Edge Function de validation des paiements PayTech
 │
