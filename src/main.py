@@ -1,4 +1,6 @@
-import webbrowser
+import os
+import threading
+
 import flet as ft
 
 from database.db_manager import Database
@@ -12,6 +14,8 @@ from ui.dialogs.pin_settings import DialogPinSettings
 from utils.subscription_checker import verifier_statut_abonnement
 from utils.updater import verifier_mise_a_jour
 from utils.paytech_service import generer_lien_paiement_paytech
+from utils.url_helper import ouvrir_url
+
 
 def main(page: ft.Page):
     page.title = "Carnet de Crédit"
@@ -19,6 +23,46 @@ def main(page: ft.Page):
     page.padding = 16
 
     db = Database()
+
+    # La vérification de mise à jour ne se fait qu'une fois par lancement
+    maj_deja_verifiee = {"fait": False}
+
+    # --- 0. MISE À JOUR ---
+    def afficher_dialogue_maj(url_apk: str):
+        def fermer(e=None):
+            dlg.open = False
+            page.update()
+
+        def telecharger(e):
+            fermer()
+            ouvrir_url(page, url_apk)
+
+        dlg = ft.AlertDialog(
+            title=ft.Text("Mise à jour disponible", weight=ft.FontWeight.BOLD),
+            content=ft.Text(
+                "Une nouvelle version de l'application est disponible.\n"
+                "Le téléchargement s'ouvrira dans votre navigateur."
+            ),
+            actions=[
+                ft.TextButton("Plus tard", on_click=fermer),
+                ft.ElevatedButton("Télécharger", on_click=telecharger),
+            ],
+        )
+        page.overlay.append(dlg)
+        dlg.open = True
+        page.update()
+
+    def controler_mise_a_jour():
+        # Exécuté dans un thread pour ne pas bloquer l'interface
+        disponible, url_apk = verifier_mise_a_jour()
+        if disponible and url_apk:
+            afficher_dialogue_maj(url_apk)
+
+    def lancer_controle_maj_une_fois():
+        if maj_deja_verifiee["fait"]:
+            return
+        maj_deja_verifiee["fait"] = True
+        threading.Thread(target=controler_mise_a_jour, daemon=True).start()
 
     # --- 1. BOÎTE DE DIALOGUE : PAIEMENT D'ABONNEMENT ---
     def afficher_dialogue_abonnement():
@@ -33,15 +77,17 @@ def main(page: ft.Page):
             page.update()
 
         def aller_au_paiement(e):
+            progress_bar.visible = True
             txt_status.value = "Génération du lien de paiement..."
             txt_status.color = ft.Colors.BLUE_700
             page.update()
 
             lien_paiement = generer_lien_paiement_paytech(user_id)
+            progress_bar.visible = False
             if lien_paiement:
                 txt_status.value = "Redirection vers PayTech..."
                 page.update()
-                webbrowser.open(lien_paiement)
+                ouvrir_url(page, lien_paiement)
             else:
                 txt_status.value = "Erreur de connexion à PayTech."
                 txt_status.color = ft.Colors.RED_600
@@ -55,7 +101,7 @@ def main(page: ft.Page):
 
             est_actif, raison = verifier_statut_abonnement(db, forcer_verification=True)
             progress_bar.visible = False
-            
+
             if est_actif:
                 fermer_dialogue()
                 page.snack_bar = ft.SnackBar(ft.Text("Abonnement activé avec succès !"), bgcolor=ft.Colors.GREEN_600)
@@ -208,7 +254,8 @@ def main(page: ft.Page):
         page.floating_action_button = btn_fab
         page.update()
 
-        verifier_mise_a_jour(page)
+        # Une seule vérification par lancement, en arrière-plan
+        lancer_controle_maj_une_fois()
 
     # --- 6. ÉCRAN DU CODE PIN ---
     def ouvrir_ecran_code_pin():
@@ -236,5 +283,11 @@ def main(page: ft.Page):
     else:
         ouvrir_ecran_code_pin()
 
+
 if __name__ == "__main__":
-    ft.app(target=main, assets_dir="../assets")
+    # Le dossier "assets" doit être à côté de main.py ; on ne le déclare que s'il existe.
+    dossier_assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+    options = {"assets_dir": "assets"} if os.path.isdir(dossier_assets) else {}
+
+    lanceur = ft.app if hasattr(ft, "app") else ft.run
+    lanceur(main, **options)

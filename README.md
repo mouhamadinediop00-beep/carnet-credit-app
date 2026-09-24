@@ -1,9 +1,8 @@
 boutique_app/
 ├── .gitignore                    # Exclusion des fichiers temporaires, bases locales et clés
 ├── README.md                     # Documentation officielle du projet
+├──pyproject.toml
 │
-├── assets/                       # Ressources visuelles de l'application
-│   └── icon.png                  # Icône HD de l'application (Android / Fenêtre)
 │
 ├── supabase/                     # Backend Cloud & Webhook
 │   └── functions/
@@ -11,6 +10,8 @@ boutique_app/
 │           └── index.ts          # Edge Function de validation des paiements PayTech
 │
 └── src/                          # Code source principal (Python)
+    ├── assets/                       # Ressources visuelles de l'application
+    │   └── icon.png                  # Icône HD de l'application (Android / Fenêtre)
     ├── main.py                   # Point d'entrée de l'application Flet
     ├── requirements.txt          # Dépendances Python verrouillées
     │

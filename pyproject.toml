@@ -1,7 +1,15 @@
 [project]
 name = "carnet_de_credit"
 version = "1.0.0"
+dependencies = [
+    "flet==0.86.0",
+    "supabase",
+    "requests"
+]
 
 [tool.flet]
 org = "com.carnet"
 product = "Carnet de Crédit"
+
+[tool.flet.app]
+path = "src"

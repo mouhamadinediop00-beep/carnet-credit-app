@@ -1,46 +1,37 @@
 import requests
 
-# Remplacez par vos vraies clés PayTech
-PAYTECH_API_KEY = "e896cec3fbf7d97814f5b692b75a1326bb4139c69c2044b1a0ecfc02ba468398"
-PAYTECH_API_SECRET = "8db68c706e9f84888c1ca7d9b76d02eec961d2e870f9c24fe69916d94ed89bc0"
+# Ces deux valeurs peuvent être publiques (l'URL du projet et la clé "anon" de Supabase).
+# Les clés secrètes PayTech, elles, restent UNIQUEMENT côté Supabase (voir create-payment/index.ts).
+SUPABASE_URL = "https://ofmigkoamxqvfmthxcpa.supabase.co"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mbWlna29hbXhxdmZtdGh4Y3BhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwMzU4ODEsImV4cCI6MjEwNTYxMTg4MX0._3DhPB2WoKbivBJmgUTercoiO-C222qmY3C9DfpUZHs"
 
-# URL de l'Edge Function créée à l'Étape 1
-SUPABASE_WEBHOOK_URL = "https://ofmigkoamxqvfmthxcpa.supabase.co/functions/v1/paytech-webhook"
+CREATE_PAYMENT_URL = f"{SUPABASE_URL}/functions/v1/create-payment"
+
 
 def generer_lien_paiement_paytech(user_id: str) -> str | None:
     """
-    Initié une demande de paiement sur PayTech et retourne le lien de paiement.
+    Demande à la fonction Supabase 'create-payment' de créer le paiement PayTech
+    et retourne le lien de paiement (ou None en cas d'erreur).
     """
-    url = "https://paytech.sn/api/payment/request-payment"
-
     headers = {
-        "Accept": "application/json",
         "Content-Type": "application/json",
-        "api_key": PAYTECH_API_KEY,
-        "api_secret": PAYTECH_API_SECRET
-    }
-
-    payload = {
-        "item_name": "Abonnement Carnet de Crédit (1 Mois)",
-        "item_price": "2000",
-        "currency": "XOF",
-        "ref_command": f"SUB_{user_id[:8]}",
-        "command_name": "Renouvellement Abonnement",
-        "ipn_url": SUPABASE_WEBHOOK_URL,
-        "success_url": "https://paytech.sn",
-        "cancel_url": "https://paytech.sn",
-        "custom_field": user_id,  # Permet d'identifier le client dans Supabase
-        "env": "test"  # Utilisez "test" si vous testez avec un compte PayTech de démonstration
+        "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
+        "apikey": SUPABASE_ANON_KEY,
     }
 
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response = requests.post(
+            CREATE_PAYMENT_URL,
+            json={"user_id": user_id},
+            headers=headers,
+            timeout=15,
+        )
         data = response.json()
-        if data.get("success") == 1:
-            return data.get("redirect_url")
-        else:
-            print(f"Erreur PayTech : {data}")
-            return None
+        lien = data.get("redirect_url")
+        if response.ok and lien:
+            return lien
+        print(f"Erreur création paiement : {data}")
+        return None
     except Exception as e:
-        print(f"Erreur d'appel API PayTech : {e}")
+        print(f"Erreur d'appel create-payment : {e}")
         return None

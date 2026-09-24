@@ -3,41 +3,63 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 serve(async (req) => {
   try {
-    // 1. Récupération des données envoyées par PayTech
-    const body = await req.json()
-    const { custom_field, type_event } = body
+    let userId = ""
 
-    // Vérification de la validation du paiement
-    if (type_event === "sale_complete" || body.status === "success") {
-      const userId = custom_field // L'UUID ou l'identifiant transmis lors du paiement
+    // PayTech peut transmettre les données en JSON ou en Form-Data
+    const contentType = req.headers.get("content-type") || ""
 
-      // 2. Initialisation du client Supabase (avec clé Service Role pour outrepasser les RLS)
-      const supabaseAdmin = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-      )
-
-      // 3. Calcul de la nouvelle date (+30 jours)
-      const nouvelleDate = new Date()
-      nouvelleDate.setDate(nouvelleDate.getDate() + 30)
-
-      // 4. Mise à jour dans la table profiles
-      const { error } = await supabaseAdmin
-        .from("profiles")
-        .update({ subscription_expires_at: nouvelleDate.toISOString() })
-        .or(`id.eq.${userId},email.ilike.%${userId}%`)
-
-      if (error) {
-        console.error("Erreur lors de la mise à jour :", error)
-        return new Response(JSON.stringify({ error: error.message }), { status: 500 })
-      }
-
-      return new Response(JSON.stringify({ message: "Abonnement prolongé de 30 jours avec succès" }), { status: 200 })
+    if (contentType.includes("application/json")) {
+      const body = await req.json()
+      userId = body.custom_field || body.client_reference
+    } else {
+      const formData = await req.formData()
+      userId = formData.get("custom_field")?.toString() || ""
     }
 
-    return new Response(JSON.stringify({ message: "Événement ignoré" }), { status: 200 })
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "ID client manquant" }), { status: 400 })
+    }
+
+    // Connexion admin Supabase
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    // Récupération de la date d'expiration actuelle du profil
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('subscription_expires_at')
+      .eq('id', userId)
+      .single()
+
+    let nouvelleDate = new Date()
+
+    // Si l'abonnement est encore en cours, on ajoute 30 jours à la date de fin
+    if (profile?.subscription_expires_at) {
+      const dateExpiration = new Date(profile.subscription_expires_at)
+      if (dateExpiration > nouvelleDate) {
+        nouvelleDate = dateExpiration
+      }
+    }
+
+    // Ajout de 30 jours
+    nouvelleDate.setDate(nouvelleDate.getDate() + 30)
+
+    // Mise à jour automatique du profil client
+    const { error } = await supabaseAdmin
+      .from('profiles')
+      .update({ subscription_expires_at: nouvelleDate.toISOString() })
+      .eq('id', userId)
+
+    if (error) throw error
+
+    return new Response(JSON.stringify({ success: true, message: "Abonnement prolonge de 30 jours" }), {
+      headers: { "Content-Type": "application/json" },
+      status: 200,
+    })
+
   } catch (err) {
-    console.error("Erreur Webhook :", err)
-    return new Response(JSON.stringify({ error: err.message }), { status: 400 })
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 })
   }
 })
