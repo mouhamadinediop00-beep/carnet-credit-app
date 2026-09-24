@@ -1,6 +1,6 @@
 [project]
 name = "carnet_de_credit"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
     "flet==0.86.0",
     "supabase",

@@ -2,7 +2,7 @@ import platform
 
 import requests
 
-VERSION_ACTUELLE = "1.0.0"
+VERSION_ACTUELLE = "1.0.1"
 GITHUB_REPO = "mouhamadinediop00-beep/carnet-credit-app"
 
 
