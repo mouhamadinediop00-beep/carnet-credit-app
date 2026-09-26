@@ -4,12 +4,17 @@ version = "1.0.1"
 dependencies = [
     "flet==0.86.0",
     "supabase",
-    "requests"
+    "requests",
+    "flet-secure-storage==0.86.0"
 ]
 
 [tool.flet]
 org = "com.carnet"
 product = "Carnet de Crédit"
+
+[tool.flet.android.manifest_application]
+"allowBackup" = "false"
+"fullBackupContent" = "false"
 
 [tool.flet.app]
 path = "src"

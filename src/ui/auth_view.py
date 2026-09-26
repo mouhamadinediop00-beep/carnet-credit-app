@@ -1,4 +1,5 @@
 import flet as ft
+import asyncio
 from database.supabase_client import SupabaseManager
 
 class AuthView(ft.Container):
@@ -78,7 +79,7 @@ class AuthView(ft.Container):
             
         self.update()
 
-    def _soumettre(self, e):
+    async def _soumettre(self, e):
         tel = self.txt_telephone.value.strip()
         pwd = self.txt_password.value.strip()
 
@@ -97,12 +98,12 @@ class AuthView(ft.Container):
         self.update()
 
         if self.is_signup_mode:
-            succes, res = SupabaseManager.s_inscrire(tel, pwd)
+            succes, res = await asyncio.to_thread(SupabaseManager.s_inscrire, tel, pwd)
         else:
-            succes, res = SupabaseManager.se_connecter(tel, pwd)
+            succes, res = await asyncio.to_thread(SupabaseManager.se_connecter, tel, pwd)
 
         if succes:
-            self.on_auth_success(res)
+            await self.on_auth_success(res)
         else:
             self.lbl_erreur.value = res
             self.btn_action.disabled = False

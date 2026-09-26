@@ -1,9 +1,11 @@
 import os
 import threading
+import asyncio
 
 import flet as ft
 
 from database.db_manager import Database
+from database.supabase_client import SupabaseManager
 from ui.auth_view import AuthView
 from ui.components.pin_view import PinView
 from ui.components.header import Header
@@ -15,14 +17,16 @@ from utils.subscription_checker import verifier_statut_abonnement
 from utils.updater import verifier_mise_a_jour
 from utils.paytech_service import generer_lien_paiement_paytech
 from utils.url_helper import ouvrir_url
+from utils.secure_storage import SecureSessionStorage
 
 
-def main(page: ft.Page):
+async def main(page: ft.Page):
     page.title = "Carnet de Crédit"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 16
 
     db = Database()
+    secure_session = SecureSessionStorage()
 
     # La vérification de mise à jour ne se fait qu'une fois par lancement
     maj_deja_verifiee = {"fait": False}
@@ -200,6 +204,134 @@ def main(page: ft.Page):
         else:
             afficher_dialogue_abonnement()
 
+    async def au_succes_authentification(user_id):
+        
+        # --------------------------------------------------------
+        # 1. Récupération de la session créée par Supabase
+        # --------------------------------------------------------
+        
+        session_supabase = (
+            SupabaseManager.get_session()
+        )
+        
+        if not session_supabase:
+        
+            page.snack_bar =(
+                ft.SnackBar(
+                    content=ft.Text(
+                        "Impossible de récupérer la session."
+                    )
+                )
+            )
+            page.snack_bar.open = True
+            page.update()
+            return
+    
+        access_token = getattr(
+            session_supabase,
+            "access_token",
+                None
+        )
+    
+        refresh_token = getattr(
+            session_supabase,
+            "refresh_token",
+            None
+        )
+    
+        if not access_token or not refresh_token:
+    
+            page.snack_bar(
+                ft.SnackBar(
+                    content=ft.Text(
+                        "Session Supabase incomplète."
+                    )
+                )
+            )
+            page.snack_bar.open = True
+            page.update()
+            return
+    
+        # --------------------------------------------------------
+        # 2. Tokens -> stockage sécurisé
+        # --------------------------------------------------------
+    
+        sauvegarde_ok = (
+            await secure_session.sauvegarder_tokens(
+                access_token,
+                refresh_token
+            )
+        )
+    
+        if not sauvegarde_ok:
+    
+            page.show_dialog(
+                ft.SnackBar(
+                    content=ft.Text(
+                        "Impossible de sécuriser la session."
+                    )
+                )
+            )
+    
+            return
+        # --------------------------------------------------------
+        # 3. SQLite -> uniquement user_id / email
+        # --------------------------------------------------------
+
+        db.save_user_session(
+            user_id=user_id,
+            email="",
+            stay_logged_in=True
+        )
+
+        # --------------------------------------------------------
+        # 4. Nettoyage des anciens tokens SQLite
+        # --------------------------------------------------------
+
+        db.supprimer_anciens_tokens()
+
+        # --------------------------------------------------------
+        # 5. Vérification initiale de l'abonnement
+        # --------------------------------------------------------
+
+        verifier_statut_abonnement(
+            db,
+            forcer_verification=True
+        )
+    
+        # --------------------------------------------------------
+        # 6. Ouverture du PIN
+        # --------------------------------------------------------
+
+        ouvrir_ecran_code_pin()
+
+    async def deconnecter_utilisateur(e=None):
+    
+        # 1. Supabase
+        SupabaseManager.se_deconnecter()
+    
+        # 2. Tokens sécurisés
+        await secure_session.supprimer_tokens()
+    
+        # 3. Session locale SQLite
+        db.clear_user_session()
+    
+        # 4. Anciennes traces éventuelles
+        db.supprimer_anciens_tokens()
+    
+        # 5. Retour connexion
+        page.controls.clear()
+        page.floating_action_button = None
+    
+        page.add(
+            AuthView(
+                on_auth_success=au_succes_authentification
+            )
+        )
+    
+        page.update()
+    
+
     # --- 5. INTERFACE PRINCIPALE ---
     def charger_application_principale():
         page.controls.clear()
@@ -208,8 +340,33 @@ def main(page: ft.Page):
             dlg_pin = DialogPinSettings(db_ref=db, on_pin_changed=lambda new_pin: None)
             dlg_pin.ouvrir(page)
 
-        header = Header(on_pin_click=ouvrir_parametres_pin)
-        header.mettre_a_jour(db.get_total_dettes(), db.get_total_remboursements())
+        header = Header(
+            on_pin_click=ouvrir_parametres_pin
+        )
+
+        btn_deconnexion = ft.IconButton(
+            icon=ft.Icons.LOGOUT,
+            tooltip="Se déconnecter",
+            icon_color=ft.Colors.RED_600,
+            on_click=deconnecter_utilisateur
+        )
+
+        barre_haut = ft.Row(
+            controls=[
+                ft.Container(
+                    content=header,
+                    expand=True
+                ),
+                btn_deconnexion
+            ],
+            vertical_alignment=ft.CrossAxisAlignment.CENTER
+        )
+
+        header.mettre_a_jour(
+            db.get_total_dettes(),
+            db.get_total_remboursements()
+        )
+    
 
         txt_recherche = ft.TextField(
             hint_text="Rechercher un client...",
@@ -250,7 +407,7 @@ def main(page: ft.Page):
             on_click=au_clic_ajouter_client
         )
 
-        page.add(header, txt_recherche, liste_view)
+        page.add(barre_haut,txt_recherche,liste_view)
         page.floating_action_button = btn_fab
         page.update()
 
@@ -259,29 +416,156 @@ def main(page: ft.Page):
 
     # --- 6. ÉCRAN DU CODE PIN ---
     def ouvrir_ecran_code_pin():
-        pin_actuel = db.get_pin()
-        if not pin_actuel:
+        pin_existe = db.get_pin()
+        if not pin_existe:
             charger_application_principale()
         else:
             page.controls.clear()
-            pin_view = PinView(pin_correct=pin_actuel, on_success=charger_application_principale)
+            pin_view = PinView(db_ref=db, on_success=charger_application_principale)
             page.add(pin_view)
             page.update()
 
-    # --- 7. INITIALISATION DU FLUX D'ACCÈS ---
-    session = db.get_user_session()
+    # ========================================================
+    # DÉMARRAGE / RESTAURATION SESSION
+    # ========================================================
 
-    if not session["user_id"]:
-        def au_succes_authentification(user_id):
-            db.save_user_session(user_id, "", False)
-            verifier_statut_abonnement(db)
-            ouvrir_ecran_code_pin()
+    session_locale = db.get_user_session()
 
-        page.controls.clear()
-        page.add(AuthView(on_auth_success=au_succes_authentification))
-        page.update()
+    user_id = session_locale.get(
+        "user_id"
+    )
+
+    # ========================================================
+    # AUCUN UTILISATEUR LOCAL
+    # ========================================================
+
+    if not user_id:
+
+        def afficher_authentification():
+
+            page.controls.clear()
+
+            page.add(
+                AuthView(
+                    on_auth_success=
+                    au_succes_authentification
+                )
+            )
+
+            page.update()
+
+
+        afficher_authentification()
+
+
+    # ========================================================
+    # UTILISATEUR DÉJÀ CONNU
+    # ========================================================
+
     else:
+
+        # ----------------------------------------------------
+        # Migration :
+        # suppression d'éventuels anciens tokens SQLite
+        # ----------------------------------------------------
+
+        db.supprimer_anciens_tokens()
+
+        # ----------------------------------------------------
+        # Lecture SecureStorage
+        # ----------------------------------------------------
+
+        access_token, refresh_token = (
+            await secure_session.recuperer_tokens()
+        )
+
+        # ----------------------------------------------------
+        # Tentative de restauration Supabase
+        # ----------------------------------------------------
+
+        if access_token and refresh_token:
+
+            restauration_ok = (
+                SupabaseManager.restaurer_session(
+                    access_token,
+                    refresh_token
+                )
+            )
+
+            if restauration_ok:
+
+                # Supabase peut avoir renouvelé le JWT.
+                nouvelle_session = (
+                    SupabaseManager.get_session()
+                )
+
+                if nouvelle_session:
+
+                    nouveau_access = getattr(
+                        nouvelle_session,
+                        "access_token",
+                        None
+                    )
+
+                    nouveau_refresh = getattr(
+                        nouvelle_session,
+                        "refresh_token",
+                        None
+                    )
+
+                    if (
+                        nouveau_access
+                        and nouveau_refresh
+                    ):
+
+                        await (
+                            secure_session
+                            .sauvegarder_tokens(
+                                nouveau_access,
+                                nouveau_refresh
+                            )
+                        )
+
         ouvrir_ecran_code_pin()
+
+    async def supprimer_compte_utilisateur(e=None):
+        def confirmer(e):
+            dlg.open = False
+            page.update()
+
+            succes, msg = SupabaseManager.supprimer_compte()
+            if succes:
+                db.clear_user_session()
+                db.supprimer_anciens_tokens()
+                asyncio.create_task(secure_session.supprimer_tokens())
+                page.controls.clear()
+                page.floating_action_button = None
+                page.add(AuthView(on_auth_success=au_succes_authentification))
+            else:
+                page.snack_bar = ft.SnackBar(ft.Text(f"Erreur : {msg}"), bgcolor=ft.Colors.RED_600)
+                page.snack_bar.open = True
+            page.update()
+
+        def annuler(e):
+            dlg.open = False
+            page.update()
+
+        dlg = ft.AlertDialog(
+            title=ft.Text("Supprimer le compte"),
+            content=ft.Text(
+                "Cette action est définitive. Votre compte, votre abonnement et vos accès seront "
+                "supprimés. Vos clients et transactions locaux resteront sur cet appareil.",
+                size=13
+            ),
+            actions=[
+                ft.TextButton("Annuler", on_click=annuler),
+                ft.ElevatedButton("Supprimer définitivement", bgcolor=ft.Colors.RED_600, color=ft.Colors.WHITE, on_click=confirmer)
+            ]
+        )
+        page.overlay.append(dlg)
+        dlg.open = True
+        page.update()
+
 
 
 if __name__ == "__main__":

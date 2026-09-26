@@ -1,3 +1,4 @@
 flet==0.86.0
 Requests==2.34.2
 supabase==2.31.0
+flet-secure-storage

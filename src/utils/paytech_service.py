@@ -1,7 +1,5 @@
 import requests
 
-# Ces deux valeurs peuvent être publiques (l'URL du projet et la clé "anon" de Supabase).
-# Les clés secrètes PayTech, elles, restent UNIQUEMENT côté Supabase (voir create-payment/index.ts).
 SUPABASE_URL = "https://ofmigkoamxqvfmthxcpa.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mbWlna29hbXhxdmZtdGh4Y3BhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwMzU4ODEsImV4cCI6MjEwNTYxMTg4MX0._3DhPB2WoKbivBJmgUTercoiO-C222qmY3C9DfpUZHs"
 

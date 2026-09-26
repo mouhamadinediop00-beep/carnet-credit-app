@@ -33,9 +33,10 @@ class DialogPinSettings(ft.AlertDialog):
 
     def ouvrir(self, page):
         pin_actuel = self.db.get_pin()
-        self.champ_pin.value = pin_actuel
-        self.champ_pin.error_text = None
+        self.champ_pin.value = ""
 
+        self.champ_pin.error_text = None
+        self.champ_pin.hint_text = "PIN déjà défini — laissez vide pour le garder" if pin_actuel else None
         if self not in page.overlay:
             page.overlay.append(self)
         self.open = True
@@ -47,6 +48,14 @@ class DialogPinSettings(ft.AlertDialog):
 
     def enregistrer(self, e):
         val = (self.champ_pin.value or "").strip()
+
+        if not val:
+            self.db.set_parametre("code_pin", None)   # désactive le verrouillage
+            self.open = False
+            e.page.update()
+            self.on_pin_changed(val)
+            return
+
         if val and (not val.isdigit() or len(val) != 6):
             self.champ_pin.error_text = "Le PIN doit contenir exactement 6 chiffres"
             self.update()
